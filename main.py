@@ -1,5 +1,6 @@
 import pygame
 import random
+import time
 
 # Инициализация Pygame
 pygame.init()
@@ -16,6 +17,7 @@ WHITE = (255, 255, 255)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+PURPLE = (128, 0, 128)
 
 # Создание окна
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -72,21 +74,21 @@ def game_loop():
         # Отрисовка стрелок
         for arrow in arrows:
             if arrow['type'] == 'UP':
-                pygame.draw.polygon(screen, RED, [(arrow['x'], arrow['y']),
-                                                    (arrow['x'] + ARROW_SIZE // 2, arrow['y'] + ARROW_SIZE),
-                                                    (arrow['x'] - ARROW_SIZE // 2, arrow['y'] + ARROW_SIZE)])
+                pygame.draw.polygon(screen, RED, [(150, arrow['y']),
+                                                    (150 + ARROW_SIZE // 2, arrow['y'] + ARROW_SIZE),
+                                                    (150 - ARROW_SIZE // 2, arrow['y'] + ARROW_SIZE)])
             elif arrow['type'] == 'DOWN':
-                pygame.draw.polygon(screen, GREEN, [(arrow['x'], arrow['y']),
-                                                      (arrow['x'] + ARROW_SIZE // 2, arrow['y'] - ARROW_SIZE),
-                                                      (arrow['x'] - ARROW_SIZE // 2, arrow['y'] - ARROW_SIZE)])
+                pygame.draw.polygon(screen, GREEN, [(350, arrow['y']),
+                                                      (350 + ARROW_SIZE // 2, arrow['y'] - ARROW_SIZE),
+                                                      (350 - ARROW_SIZE // 2, arrow['y'] - ARROW_SIZE)])
             elif arrow['type'] == 'LEFT':
-                pygame.draw.polygon(screen, BLUE, [(arrow['x'], arrow['y']),
-                                                     (arrow['x'] + ARROW_SIZE, arrow['y'] + ARROW_SIZE // 2),
-                                                     (arrow['x'] + ARROW_SIZE, arrow['y'] - ARROW_SIZE // 2)])
+                pygame.draw.polygon(screen, BLUE, [(450, arrow['y']),
+                                                     (450 + ARROW_SIZE, arrow['y'] + ARROW_SIZE // 2),
+                                                     (450 + ARROW_SIZE, arrow['y'] - ARROW_SIZE // 2)])
             elif arrow['type'] == 'RIGHT':
-                pygame.draw.polygon(screen, BLUE, [(arrow['x'], arrow['y']),
-                                                     (arrow['x'] - ARROW_SIZE, arrow['y'] + ARROW_SIZE // 2),
-                                                     (arrow['x'] - ARROW_SIZE, arrow['y'] - ARROW_SIZE // 2)])
+                pygame.draw.polygon(screen, PURPLE, [(650, arrow['y']),
+                                                     (650 - ARROW_SIZE, arrow['y'] + ARROW_SIZE // 2),
+                                                     (650 - ARROW_SIZE, arrow['y'] - ARROW_SIZE // 2)])
 
         # Отрисовка счета
         score_text = font.render(f'Score: {score}', True, (0, 0, 0))

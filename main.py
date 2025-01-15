@@ -1,6 +1,6 @@
 import pygame
 import random
-import time
+import sys
 
 # Инициализация Pygame
 pygame.init()
@@ -29,11 +29,13 @@ font = pygame.font.Font(None, FONT_SIZE)
 arrows = []
 arrow_types = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 
+
 # Функция для создания новой стрелки
 def create_arrow():
     arrow_type = random.choice(arrow_types)
     x_pos = random.randint(0, WIDTH - ARROW_SIZE)
     return {'type': arrow_type, 'x': x_pos, 'y': -ARROW_SIZE}
+
 
 # Основной игровой цикл
 def game_loop():
@@ -75,16 +77,16 @@ def game_loop():
         for arrow in arrows:
             if arrow['type'] == 'UP':
                 pygame.draw.polygon(screen, RED, [(150, arrow['y']),
-                                                    (150 + ARROW_SIZE // 2, arrow['y'] + ARROW_SIZE),
-                                                    (150 - ARROW_SIZE // 2, arrow['y'] + ARROW_SIZE)])
+                                                  (150 + ARROW_SIZE // 2, arrow['y'] + ARROW_SIZE),
+                                                  (150 - ARROW_SIZE // 2, arrow['y'] + ARROW_SIZE)])
             elif arrow['type'] == 'DOWN':
                 pygame.draw.polygon(screen, GREEN, [(350, arrow['y']),
-                                                      (350 + ARROW_SIZE // 2, arrow['y'] - ARROW_SIZE),
-                                                      (350 - ARROW_SIZE // 2, arrow['y'] - ARROW_SIZE)])
+                                                    (350 + ARROW_SIZE // 2, arrow['y'] - ARROW_SIZE),
+                                                    (350 - ARROW_SIZE // 2, arrow['y'] - ARROW_SIZE)])
             elif arrow['type'] == 'LEFT':
                 pygame.draw.polygon(screen, BLUE, [(450, arrow['y']),
-                                                     (450 + ARROW_SIZE, arrow['y'] + ARROW_SIZE // 2),
-                                                     (450 + ARROW_SIZE, arrow['y'] - ARROW_SIZE // 2)])
+                                                   (450 + ARROW_SIZE, arrow['y'] + ARROW_SIZE // 2),
+                                                   (450 + ARROW_SIZE, arrow['y'] - ARROW_SIZE // 2)])
             elif arrow['type'] == 'RIGHT':
                 pygame.draw.polygon(screen, PURPLE, [(650, arrow['y']),
                                                      (650 - ARROW_SIZE, arrow['y'] + ARROW_SIZE // 2),
@@ -104,5 +106,34 @@ def game_loop():
     print(f"Game Over! Your score: {score}")
     pygame.quit()
 
+
+# Функция для отображения главного меню
+def main_menu():
+    # Инициализация музыки
+    pygame.mixer.music.load('moondeity-neon-blade-mp3.mp3')  # Замените на имя вашего файла с музыкой
+    pygame.mixer.music.set_volume(0.5)  # Установите громкость от 0.0 до 1.0
+
+    while True:
+        screen.fill(WHITE)
+
+        # Отображение текста "Нажми чтобы начать"
+        start_text = font.render("Нажми чтобы начать", True, (0, 0, 0))
+        text_rect = start_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+        screen.blit(start_text, text_rect)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:  # ЛКМ
+                    pygame.mixer.music.play(-1)  # Запускаем музыку в бесконечном цикле
+                    game_loop()  # Запускаем игру
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
+# Главная программа
 if __name__ == '__main__':
-    game_loop()
+    main_menu()  # Запускаем главное меню

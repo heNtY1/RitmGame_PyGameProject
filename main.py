@@ -125,30 +125,51 @@ class Table(pygame.sprite.Sprite):
         self.rect.y = y_pos
 
 
+class FadingArrow(pygame.sprite.Sprite):
+    def __init__(self, arrow_image, position):
+        super().__init__()
+        self.image = arrow_image
+        self.rect = self.image.get_rect(center=position)
+        self.alpha = 255  # Полная непрозрачность
+
+    def update(self):
+        # Перемещение стрелки вверх
+        self.rect.y -= 5  # Скорость движения вверх
+        self.alpha -= 25
+        if self.alpha < 0:
+            self.alpha = 0
+
+        self.image.set_alpha(self.alpha)
+
+        # Удаляем спрайт, если он стал полностью прозрачным
+        if self.alpha == 0:
+            self.kill()
+
+
 class Particle(pygame.sprite.Sprite):
     fire = [pygame.image.load(os.path.join('data', 'star.png'))]
     for scale in (5, 10, 20):
         fire.append(pygame.transform.scale(fire[0], (scale, scale)))
 
     def __init__(self, pos, dx, dy):
-        super().__init__(all_sprites)
+        super().__init__()
         self.image = random.choice(self.fire)
-        self.rect = self.image.get_rect()
+        self.rect = self.image.get_rect(center=pos)  # Центрируем изображение по позиции
         self.velocity = [dx, dy]
-        self.rect.x, self.rect.y = pos
         self.gravity = GRAVITY
 
     def update(self):
         self.velocity[1] += self.gravity
         self.rect.x += self.velocity[0]
         self.rect.y += self.velocity[1]
+
+        # Удаляем партикл, если он выходит за пределы экрана
         if not self.rect.colliderect(screen_rect):
             self.kill()
 
 
 # Функция для создания частиц
 def create_particles(position):
-    # количество создаваемых частиц
     particle_count = 10
     # возможные скорости
     numbers = range(-5, 6)
@@ -164,22 +185,23 @@ def create_arrow():
     return arrow
 
 
+
 def game_loop():
     score = 0
     running = True
-    game_over = False  # Переменная для отслеживания состояния игры
-    # Отрисовка прямоугольника для засчитывания нажатий
+    game_over = False
     rect_y_start, rect_y_hight = 500, 100
     table = Table(0, 500, rect_y_hight)
-    # Создание первой стрелки
     arrows.append(create_arrow())
 
     global last_beat_time
 
+    fading_arrows_group = pygame.sprite.Group()
+    particles_group = pygame.sprite.Group()  # Группа для партиклов
+
     while running:
         screen.fill(WHITE)
 
-        # Проверка событий
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -187,64 +209,100 @@ def game_loop():
             if event.type == pygame.KEYDOWN and not game_over:
                 if arrows:
                     current_arrow = arrows[0]
-                    # Проверка нажатой клавиши с использованием key_bindings
                     if event.key == key_bindings.get('UP') and current_arrow.get_type() == 'UP':
                         if pygame.sprite.collide_mask(current_arrow, table):
                             score += 1
+                            position = current_arrow.get_cor()
+                            fading_arrow = FadingArrow(current_arrow.image.copy(), position)
+                            fading_arrows_group.add(fading_arrow)
+
+                            for _ in range(10):
+                                dx = random.uniform(-2, 2)
+                                dy = random.uniform(-5, -2)
+                                particle = Particle(position, dx, dy)
+                                particles_group.add(particle)
+
                             current_arrow.delete()
-                            create_particles((current_arrow.get_cor()))
                             arrows.pop(0)
                     elif event.key == key_bindings.get('DOWN') and current_arrow.get_type() == 'DOWN':
                         if pygame.sprite.collide_mask(current_arrow, table):
                             score += 1
+                            position = current_arrow.get_cor()
+                            fading_arrow = FadingArrow(current_arrow.image.copy(), position)
+                            fading_arrows_group.add(fading_arrow)
+
+                            for _ in range(10):
+                                dx = random.uniform(-2, 2)
+                                dy = random.uniform(-5, -2)
+                                particle = Particle(position, dx, dy)
+                                particles_group.add(particle)
+
                             current_arrow.delete()
-                            create_particles((current_arrow.get_cor()))
                             arrows.pop(0)
                     elif event.key == key_bindings.get('LEFT') and current_arrow.get_type() == 'LEFT':
                         if pygame.sprite.collide_mask(current_arrow, table):
                             score += 1
+                            position = current_arrow.get_cor()
+                            fading_arrow = FadingArrow(current_arrow.image.copy(), position)
+                            fading_arrows_group.add(fading_arrow)
+
+                            for _ in range(10):
+                                dx = random.uniform(-2, 2)
+                                dy = random.uniform(-5, -2)
+                                particle = Particle(position, dx, dy)
+                                particles_group.add(particle)
+
                             current_arrow.delete()
-                            create_particles((current_arrow.get_cor()))
                             arrows.pop(0)
                     elif event.key == key_bindings.get('RIGHT') and current_arrow.get_type() == 'RIGHT':
                         if pygame.sprite.collide_mask(current_arrow, table):
                             score += 1
+                            position = current_arrow.get_cor()
+                            fading_arrow = FadingArrow(current_arrow.image.copy(), position)
+                            fading_arrows_group.add(fading_arrow)
+
+
+                            for _ in range(10):
+                                dx = random.uniform(-2, 2)
+                                dy = random.uniform(-5, -2)
+                                particle = Particle(position, dx, dy)
+                                particles_group.add(particle)
+
                             current_arrow.delete()
-                            create_particles((current_arrow.get_cor()))
                             arrows.pop(0)
                     else:
                         score -= 0.5
 
-        # Обновление стрелок
         for i in list(arrows):
             i.get_y(ARROW_SPEED)
             if i.get_y() > HEIGHT:
                 score -= 1
                 arrows.remove(i)
-                # running = False  # Игра заканчивается, если стрелка достигает низа экрана
+
+        fading_arrows_group.update()
+        particles_group.update()  # Обновление партиклов
 
         score_text = font.render(f'Score: {score}', True, (0, 0, 0))
         screen.blit(score_text, (10, 10))
 
-        # Проверка времени для появления новых стрелок в ритме музыки
         current_time = pygame.time.get_ticks()
         if current_time - last_beat_time >= BEAT_INTERVAL:
             arrows.append(create_arrow())
             last_beat_time = current_time
 
-        # Проверка окончания песни
-        if not arrows and not game_over:  # Если нет стрелок и игра еще не закончена
+        if not arrows and not game_over:
             game_over = True
 
-        # Если игра окончена, отобразить сообщение "Вы победили!"
         if game_over:
-            victory_text = font.render('Вы победили!', True, (0, 255, 0))  # Зеленый цвет текста
-            text_rect = victory_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))  # Центрирование текста
+            victory_text = font.render('Вы победили!', True, (0, 255, 0))
+            text_rect = victory_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
             screen.blit(victory_text, text_rect)
 
-        # Отрисовка стрелок с использованием спрайтов
         all_sprites.update()
         all_sprites.draw(screen)
+
+        fading_arrows_group.draw(screen)
+        particles_group.draw(screen)  # Отрисовка партиклов
 
         pygame.display.flip()
         clock.tick(FPS)

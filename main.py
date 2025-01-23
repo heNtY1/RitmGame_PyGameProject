@@ -84,19 +84,19 @@ no_button_rect = no_button_text.get_rect(center=(WIDTH // 2 + 100, HEIGHT // 2 +
 
 
 class Arrow(pygame.sprite.Sprite):
-    def __init__(self, type, x_pos, y_pos):
+    def __init__(self, types, x_pos, y_pos):
         super().__init__(all_sprites, ARR)
-        if type == 'UP':
+        if types == 'UP':
             self.image = arrow_up_sprite
-        elif type == 'DOWN':
+        elif types == 'DOWN':
             self.image = arrow_down_sprite
-        elif type == 'LEFT':
+        elif types == 'LEFT':
             self.image = arrow_left_sprite
-        elif type == 'RIGHT':
+        elif types == 'RIGHT':
             self.image = arrow_right_sprite
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image)
-        self.type = type
+        self.type = types
         self.rect.x = x_pos
         self.rect.y = y_pos
 
@@ -127,7 +127,7 @@ class Table(pygame.sprite.Sprite):
 
 class FadingArrow(pygame.sprite.Sprite):
     def __init__(self, arrow_image, position):
-        super().__init__()
+        super().__init__(fading_arrows_group)
         self.image = arrow_image
         self.rect = self.image.get_rect(center=position)
         self.alpha = 255  # Полная непрозрачность
@@ -152,7 +152,7 @@ class Particle(pygame.sprite.Sprite):
         fire.append(pygame.transform.scale(fire[0], (scale, scale)))
 
     def __init__(self, pos, dx, dy):
-        super().__init__()
+        super().__init__(particles_group)
         self.image = random.choice(self.fire)
         self.rect = self.image.get_rect(center=pos)  # Центрируем изображение по позиции
         self.velocity = [dx, dy]
@@ -185,7 +185,6 @@ def create_arrow():
     return arrow
 
 
-
 def game_loop():
     score = 0
     running = True
@@ -195,9 +194,6 @@ def game_loop():
     arrows.append(create_arrow())
 
     global last_beat_time
-
-    fading_arrows_group = pygame.sprite.Group()
-    particles_group = pygame.sprite.Group()  # Группа для партиклов
 
     while running:
         screen.fill(WHITE)
@@ -213,14 +209,12 @@ def game_loop():
                         if pygame.sprite.collide_mask(current_arrow, table):
                             score += 1
                             position = current_arrow.get_cor()
-                            fading_arrow = FadingArrow(current_arrow.image.copy(), position)
-                            fading_arrows_group.add(fading_arrow)
+                            FadingArrow(current_arrow.image.copy(), position)
 
                             for _ in range(10):
                                 dx = random.uniform(-2, 2)
                                 dy = random.uniform(-5, -2)
-                                particle = Particle(position, dx, dy)
-                                particles_group.add(particle)
+                                Particle(position, dx, dy)
 
                             current_arrow.delete()
                             arrows.pop(0)
@@ -228,14 +222,12 @@ def game_loop():
                         if pygame.sprite.collide_mask(current_arrow, table):
                             score += 1
                             position = current_arrow.get_cor()
-                            fading_arrow = FadingArrow(current_arrow.image.copy(), position)
-                            fading_arrows_group.add(fading_arrow)
+                            FadingArrow(current_arrow.image.copy(), position)
 
                             for _ in range(10):
                                 dx = random.uniform(-2, 2)
                                 dy = random.uniform(-5, -2)
-                                particle = Particle(position, dx, dy)
-                                particles_group.add(particle)
+                                Particle(position, dx, dy)
 
                             current_arrow.delete()
                             arrows.pop(0)
@@ -243,14 +235,12 @@ def game_loop():
                         if pygame.sprite.collide_mask(current_arrow, table):
                             score += 1
                             position = current_arrow.get_cor()
-                            fading_arrow = FadingArrow(current_arrow.image.copy(), position)
-                            fading_arrows_group.add(fading_arrow)
+                            FadingArrow(current_arrow.image.copy(), position)
 
                             for _ in range(10):
                                 dx = random.uniform(-2, 2)
                                 dy = random.uniform(-5, -2)
-                                particle = Particle(position, dx, dy)
-                                particles_group.add(particle)
+                                Particle(position, dx, dy)
 
                             current_arrow.delete()
                             arrows.pop(0)
@@ -258,15 +248,12 @@ def game_loop():
                         if pygame.sprite.collide_mask(current_arrow, table):
                             score += 1
                             position = current_arrow.get_cor()
-                            fading_arrow = FadingArrow(current_arrow.image.copy(), position)
-                            fading_arrows_group.add(fading_arrow)
-
+                            FadingArrow(current_arrow.image.copy(), position)
 
                             for _ in range(10):
                                 dx = random.uniform(-2, 2)
                                 dy = random.uniform(-5, -2)
-                                particle = Particle(position, dx, dy)
-                                particles_group.add(particle)
+                                Particle(position, dx, dy)
 
                             current_arrow.delete()
                             arrows.pop(0)
@@ -493,5 +480,7 @@ def confirm_exit():
 # Главная программа
 if __name__ == '__main__':
     all_sprites = pygame.sprite.Group()
+    fading_arrows_group = pygame.sprite.Group()
+    particles_group = pygame.sprite.Group()
     ARR = pygame.sprite.Group()
     main_menu()  # Запускаем главное меню

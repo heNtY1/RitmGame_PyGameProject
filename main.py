@@ -1,6 +1,7 @@
 import os
 import random
 import sys
+import datetime
 
 import librosa
 import numpy as np
@@ -19,6 +20,7 @@ FONT_SIZE = 40
 BEAT_INTERVAL = 500  # Интервал между появлениями стрелок (в миллисекундах)
 GRAVITY = 1
 screen_rect = (0, 0, WIDTH, HEIGHT)
+DELTA = datetime.timedelta(0, 0, 60)  # Регулировка частоты появления стрелок
 
 # Цвета
 WHITE = (255, 255, 255)
@@ -44,7 +46,6 @@ fixed_x_positions = {
 }
 
 # Стрелки
-arrows = pygame.sprite.Group()
 arrow_types = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 last_beat_time = 0
 
@@ -89,7 +90,7 @@ no_button_rect = no_button_text.get_rect(center=(WIDTH // 2 + 100, HEIGHT // 2 +
 
 class Arrow(pygame.sprite.Sprite):
     def __init__(self, types):
-        super().__init__(all_sprites)
+        super().__init__(all_sprites, arrows)
         if types == 'UP':
             self.image = arrow_up_sprite
         elif types == 'DOWN':
@@ -178,11 +179,6 @@ def create_particles(position):
     for _ in range(particle_count):
         Particle(position, random.choice(numbers), random.choice(numbers))
 
-def play_random_music():
-    global track
-    track = random.choice(music_tracks)  # Выбираем случайный трек
-    pygame.mixer.music.load(os.path.join('data', track))  # Загружаем трек
-    pygame.mixer.music.play(-1)  # Воспроизводим в бесконечном цикле
 
 def load_beats(track_path):
     y, sr = librosa.load(os.path.join('data', track_path))
@@ -197,27 +193,20 @@ def game_loop():
     running = True
     score = 0
     game_over = False
+    dt = datetime.datetime.now()
 
-    # Создание таблицы
+    # Создание зоны поражения
     table_height = 80
     table = Table(0, HEIGHT - table_height, table_height)
 
     # Случайный выбор трека
     track_path = random.choice(music_tracks)
+    beats = load_beats(track_path)
+    last_beat_index = 0
 
     # Воспроизведение выбранного трека
     pygame.mixer.music.load(os.path.join('data', track_path))
     pygame.mixer.music.play(-1)  # Зацикливаем трек
-
-    beats = load_beats(track_path)
-    last_beat_index = 0
-
-    key_bindings = {
-        'UP': pygame.K_UP,
-        'DOWN': pygame.K_DOWN,
-        'LEFT': pygame.K_LEFT,
-        'RIGHT': pygame.K_RIGHT,
-    }
 
     while running:
         screen.fill(WHITE)
@@ -234,53 +223,30 @@ def game_loop():
                             score += 1
                             position = current_arrow.get_cor()
                             FadingArrow(current_arrow.image.copy(), position)
-
-
                             # Создание частиц при успешном нажатии
-                            for _ in range(10):  # Количество частиц
-                                dx = random.uniform(-2, 2)  # Случайное направление по X
-                                dy = random.uniform(-2, -5)  # Случайное направление по Y (вверх)
-                                Particle(position, dx, dy)
-
+                            create_particles(position)
                             current_arrow.delete()
+
                     elif event.key == key_bindings.get('DOWN') and current_arrow.get_type() == 'DOWN':
                         if pygame.sprite.collide_mask(current_arrow, table):
                             score += 1
                             position = current_arrow.get_cor()
                             FadingArrow(current_arrow.image.copy(), position)
-
-
-                            for _ in range(10):
-                                dx = random.uniform(-2, 2)
-                                dy = random.uniform(-2, -5)
-                                Particle(position, dx, dy)
-
+                            create_particles(position)
                             current_arrow.delete()
                     elif event.key == key_bindings.get('LEFT') and current_arrow.get_type() == 'LEFT':
                         if pygame.sprite.collide_mask(current_arrow, table):
                             score += 1
                             position = current_arrow.get_cor()
                             FadingArrow(current_arrow.image.copy(), position)
-
-
-                            for _ in range(10):
-                                dx = random.uniform(-2, 2)
-                                dy = random.uniform(-2, -5)
-                                Particle(position, dx, dy)
-
+                            create_particles(position)
                             current_arrow.delete()
                     elif event.key == key_bindings.get('RIGHT') and current_arrow.get_type() == 'RIGHT':
                         if pygame.sprite.collide_mask(current_arrow, table):
                             score += 1
                             position = current_arrow.get_cor()
                             FadingArrow(current_arrow.image.copy(), position)
-
-
-                            for _ in range(10):
-                                dx = random.uniform(-2, 2)
-                                dy = random.uniform(-2, -5)
-                                Particle(position, dx, dy)
-
+                            create_particles(position)
                             current_arrow.delete()
         # Обновление стрелок и удаление их за пределами экрана
         arrows.update()
@@ -289,14 +255,14 @@ def game_loop():
             if arrow.rect.y > HEIGHT:
                 score -= 1
                 arrow.delete()
-
+        dlt = datetime.datetime.now() - dt
         # Создание стрелок в ритме музыки
         current_time = pygame.time.get_ticks() / 1000.0
-        if last_beat_index < len(beats) and current_time >= beats[last_beat_index]:
+        if last_beat_index < len(beats) and current_time >= beats[last_beat_index] and dlt > DELTA:
             direction = random.choice(['UP', 'DOWN', 'LEFT', 'RIGHT'])
-            new_arrow = Arrow(direction)
-            arrows.add(new_arrow)
+            Arrow(direction)
             last_beat_index += 1
+            dt = datetime.datetime.now()
 
         # Обновление fading arrows и particles
         fading_arrows_group.update()
@@ -315,6 +281,7 @@ def game_loop():
             victory_text = font.render('Игра окончена!', True, (255, 0, 0))
             text_rect = victory_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
             screen.blit(victory_text, text_rect)
+            main_menu()
 
         # Отрисовка всех спрайтов на экране
         all_sprites.draw(screen)
@@ -388,14 +355,54 @@ def main_menu():
                     elif settings_button_rect.collidepoint(mouse_pos):
                         change_key_bindings()  # Переход к экрану изменения раскладки
                     else:
-                        play_random_music()  # Запускаем случайную музыку
-                        game_loop()  # Запускаем игру
+                        game_loop()
+                        # menu_songs()  # Запускаем игру
         try:
             pygame.display.flip()
         except pygame.error:
             pygame.quit()
 
         clock.tick(FPS)
+
+
+# def menu_songs():
+#     gif_frames = load_gif(os.path.join('data', 'гоха.gif'))  # Замените 'гоха.gif' на путь к вашему GIF
+#     total_frames = len(gif_frames)
+#     frame_index = 0
+#
+#     content = []
+#     h = 20
+#
+#     # for i in music_tracks:
+#     #     button_text = font.render(i, True, WHITE)
+#     #     button_rect = button_text.get_rect(center=(WIDTH // 2, h))
+#     #     content.append((button_text, button_rect))
+#     #     h += 50
+#
+#     while True:
+#         screen.fill(WHITE)
+#
+#         # Отображение текущего кадра GIF с изменением размера
+#         display_gif(gif_frames, frame_index)
+#         frame_index = (frame_index + 1) % total_frames  # Переход к следующему кадру
+#         print(frame_index)
+#
+#         # for i in content:
+#         #     screen.blit(i[0], i[1])
+#
+#         # for event in pygame.event.get():
+#         #     if event.type == pygame.QUIT:
+#         #         pygame.quit()
+#         #         sys.exit()
+#         #     if event.type == pygame.MOUSEBUTTONDOWN:
+#         #         if event.button == 1:  # ЛКМ
+#         #             mouse_pos = event.pos
+#         #             for i in content:
+#         #                 if i[1].collidepoint(mouse_pos):
+#         #                     game_loop()  # Запускаем игру
+#                 # elif event.type == pygame.KEYDOWN:
+#                     # if event.key == ESCAPE:
+#                     #     main_menu()
 
 
 def change_key_binding(action, new_key):
@@ -508,7 +515,13 @@ def confirm_exit():
 # Главная программа
 if __name__ == '__main__':
     all_sprites = pygame.sprite.Group()
+    arrows = pygame.sprite.Group()
     fading_arrows_group = pygame.sprite.Group()
     particles_group = pygame.sprite.Group()
     ARR = pygame.sprite.Group()
+
+    # Воспроизведение выбранного трека
+    pygame.mixer.music.load(os.path.join('data', 'College_feat_Electric_Youth_-_A_Real_Hero_Drive.mp3'))
+    pygame.mixer.music.play(-1)
+    # Запуск главного меню
     main_menu()

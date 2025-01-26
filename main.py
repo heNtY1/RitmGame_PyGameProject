@@ -1,7 +1,10 @@
-import pygame
+import os
 import random
 import sys
-import os
+
+import librosa
+import numpy as np
+import pygame
 from PIL import Image
 
 # Инициализация Pygame
@@ -41,7 +44,7 @@ fixed_x_positions = {
 }
 
 # Стрелки
-arrows = []
+arrows = pygame.sprite.Group()
 arrow_types = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 last_beat_time = 0
 
@@ -62,15 +65,9 @@ music_tracks = [
     'moondeity-neon-blade-mp3.mp3',
     'INTERWORLD — METAMORPHOSIS (www.lightaudio.ru).mp3',
     'Весокосный год - Где-то там далеко-далеко есть земля (OST Дальнобойщики).mp3',
-    'Vova_Solodkov_-_Barabulka_78505531.mp3'
+    'Vova_Solodkov_-_Barabulka_78505531.mp3',
+    'Remzcore — Dynamite [SLOWED] (www.lightaudio.ru).mp3'
 ]
-
-
-def play_random_music():
-    track = random.choice(music_tracks)  # Выбираем случайный трек
-    pygame.mixer.music.load(os.path.join('data', track))  # Загружаем трек
-    pygame.mixer.music.play(-1)  # Воспроизводим в бесконечном цикле
-
 
 # Создание окна
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -91,25 +88,25 @@ no_button_rect = no_button_text.get_rect(center=(WIDTH // 2 + 100, HEIGHT // 2 +
 
 
 class Arrow(pygame.sprite.Sprite):
-    def __init__(self, type, x_pos, y_pos):
-        super().__init__(all_sprites, ARR)
-        if type == 'UP':
+    def __init__(self, types):
+        super().__init__(all_sprites)
+        if types == 'UP':
             self.image = arrow_up_sprite
-        elif type == 'DOWN':
+        elif types == 'DOWN':
             self.image = arrow_down_sprite
-        elif type == 'LEFT':
+        elif types == 'LEFT':
             self.image = arrow_left_sprite
-        elif type == 'RIGHT':
+        elif types == 'RIGHT':
             self.image = arrow_right_sprite
+
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image)
-        self.type = type
-        self.rect.x = x_pos
-        self.rect.y = y_pos
+        self.type = types
+        self.rect.x = fixed_x_positions[self.type]
+        self.rect.y = -50
 
-    def get_y(self, n=0):
-        self.rect.y += n
-        return self.rect.y
+    def update(self):
+        self.rect.y += ARROW_SPEED
 
     def get_cor(self):
         return self.rect.centerx, self.rect.centery
@@ -134,21 +131,19 @@ class Table(pygame.sprite.Sprite):
 
 class FadingArrow(pygame.sprite.Sprite):
     def __init__(self, arrow_image, position):
-        super().__init__()
+        super().__init__(fading_arrows_group)
         self.image = arrow_image
         self.rect = self.image.get_rect(center=position)
-        self.alpha = 255  # Полная непрозрачность
+        self.alpha = 255
 
     def update(self):
-        # Перемещение стрелки вверх
-        self.rect.y -= 5  # Скорость движения вверх
+        self.rect.y -= 5  # Движение вверх
         self.alpha -= 25
         if self.alpha < 0:
             self.alpha = 0
 
         self.image.set_alpha(self.alpha)
 
-        # Удаляем спрайт, если он стал полностью прозрачным
         if self.alpha == 0:
             self.kill()
 
@@ -159,7 +154,7 @@ class Particle(pygame.sprite.Sprite):
         fire.append(pygame.transform.scale(fire[0], (scale, scale)))
 
     def __init__(self, pos, dx, dy):
-        super().__init__()
+        super().__init__(particles_group)
         self.image = random.choice(self.fire)
         self.rect = self.image.get_rect(center=pos)  # Центрируем изображение по позиции
         self.velocity = [dx, dy]
@@ -183,26 +178,46 @@ def create_particles(position):
     for _ in range(particle_count):
         Particle(position, random.choice(numbers), random.choice(numbers))
 
-def create_arrow():
-    arrow_type = random.choice(arrow_types)
-    x_pos = fixed_x_positions[arrow_type]  # Получаем фиксированную позицию по типу стрелки
-    arrow = Arrow(arrow_type, x_pos, -ARROW_SIZE)
-    return arrow
+def play_random_music():
+    global track
+    track = random.choice(music_tracks)  # Выбираем случайный трек
+    pygame.mixer.music.load(os.path.join('data', track))  # Загружаем трек
+    pygame.mixer.music.play(-1)  # Воспроизводим в бесконечном цикле
 
+def load_beats(track_path):
+    y, sr = librosa.load(os.path.join('data', track_path))
+    onset_env = librosa.onset.onset_strength(y=y, sr=sr)
+    times = librosa.frames_to_time(np.arange(len(onset_env)), sr=sr)
+    onset_frames = librosa.onset.onset_detect(onset_envelope=onset_env, sr=sr)
+    beats = times[onset_frames]
+    return beats
 
 
 def game_loop():
-    score = 0
     running = True
+    score = 0
     game_over = False
-    rect_y_start, rect_y_hight = 500, 100
-    table = Table(0, 500, rect_y_hight)
-    arrows.append(create_arrow())
 
-    global last_beat_time
+    # Создание таблицы
+    table_height = 80
+    table = Table(0, HEIGHT - table_height, table_height)
 
-    fading_arrows_group = pygame.sprite.Group()
-    particles_group = pygame.sprite.Group()  # Группа для партиклов
+    # Случайный выбор трека
+    track_path = random.choice(music_tracks)
+
+    # Воспроизведение выбранного трека
+    pygame.mixer.music.load(os.path.join('data', track_path))
+    pygame.mixer.music.play(-1)  # Зацикливаем трек
+
+    beats = load_beats(track_path)
+    last_beat_index = 0
+
+    key_bindings = {
+        'UP': pygame.K_UP,
+        'DOWN': pygame.K_DOWN,
+        'LEFT': pygame.K_LEFT,
+        'RIGHT': pygame.K_RIGHT,
+    }
 
     while running:
         screen.fill(WHITE)
@@ -213,106 +228,102 @@ def game_loop():
 
             if event.type == pygame.KEYDOWN and not game_over:
                 if arrows:
-                    current_arrow = arrows[0]
+                    current_arrow = arrows.sprites()[0]
                     if event.key == key_bindings.get('UP') and current_arrow.get_type() == 'UP':
                         if pygame.sprite.collide_mask(current_arrow, table):
                             score += 1
                             position = current_arrow.get_cor()
-                            fading_arrow = FadingArrow(current_arrow.image.copy(), position)
-                            fading_arrows_group.add(fading_arrow)
+                            FadingArrow(current_arrow.image.copy(), position)
 
-                            for _ in range(10):
-                                dx = random.uniform(-2, 2)
-                                dy = random.uniform(-5, -2)
-                                particle = Particle(position, dx, dy)
-                                particles_group.add(particle)
+
+                            # Создание частиц при успешном нажатии
+                            for _ in range(10):  # Количество частиц
+                                dx = random.uniform(-2, 2)  # Случайное направление по X
+                                dy = random.uniform(-2, -5)  # Случайное направление по Y (вверх)
+                                Particle(position, dx, dy)
 
                             current_arrow.delete()
-                            arrows.pop(0)
                     elif event.key == key_bindings.get('DOWN') and current_arrow.get_type() == 'DOWN':
                         if pygame.sprite.collide_mask(current_arrow, table):
                             score += 1
                             position = current_arrow.get_cor()
-                            fading_arrow = FadingArrow(current_arrow.image.copy(), position)
-                            fading_arrows_group.add(fading_arrow)
+                            FadingArrow(current_arrow.image.copy(), position)
+
 
                             for _ in range(10):
                                 dx = random.uniform(-2, 2)
-                                dy = random.uniform(-5, -2)
-                                particle = Particle(position, dx, dy)
-                                particles_group.add(particle)
+                                dy = random.uniform(-2, -5)
+                                Particle(position, dx, dy)
 
                             current_arrow.delete()
-                            arrows.pop(0)
                     elif event.key == key_bindings.get('LEFT') and current_arrow.get_type() == 'LEFT':
                         if pygame.sprite.collide_mask(current_arrow, table):
                             score += 1
                             position = current_arrow.get_cor()
-                            fading_arrow = FadingArrow(current_arrow.image.copy(), position)
-                            fading_arrows_group.add(fading_arrow)
+                            FadingArrow(current_arrow.image.copy(), position)
+
 
                             for _ in range(10):
                                 dx = random.uniform(-2, 2)
-                                dy = random.uniform(-5, -2)
-                                particle = Particle(position, dx, dy)
-                                particles_group.add(particle)
+                                dy = random.uniform(-2, -5)
+                                Particle(position, dx, dy)
 
                             current_arrow.delete()
-                            arrows.pop(0)
                     elif event.key == key_bindings.get('RIGHT') and current_arrow.get_type() == 'RIGHT':
                         if pygame.sprite.collide_mask(current_arrow, table):
                             score += 1
                             position = current_arrow.get_cor()
-                            fading_arrow = FadingArrow(current_arrow.image.copy(), position)
-                            fading_arrows_group.add(fading_arrow)
+                            FadingArrow(current_arrow.image.copy(), position)
 
 
                             for _ in range(10):
                                 dx = random.uniform(-2, 2)
-                                dy = random.uniform(-5, -2)
-                                particle = Particle(position, dx, dy)
-                                particles_group.add(particle)
+                                dy = random.uniform(-2, -5)
+                                Particle(position, dx, dy)
 
                             current_arrow.delete()
-                            arrows.pop(0)
-                    else:
-                        score -= 0.5
+        # Обновление стрелок и удаление их за пределами экрана
+        arrows.update()
 
-        for i in list(arrows):
-            i.get_y(ARROW_SPEED)
-            if i.get_y() > HEIGHT:
+        for arrow in arrows:
+            if arrow.rect.y > HEIGHT:
                 score -= 1
-                arrows.remove(i)
+                arrow.delete()
 
+        # Создание стрелок в ритме музыки
+        current_time = pygame.time.get_ticks() / 1000.0
+        if last_beat_index < len(beats) and current_time >= beats[last_beat_index]:
+            direction = random.choice(['UP', 'DOWN', 'LEFT', 'RIGHT'])
+            new_arrow = Arrow(direction)
+            arrows.add(new_arrow)
+            last_beat_index += 1
+
+        # Обновление fading arrows и particles
         fading_arrows_group.update()
-        particles_group.update()  # Обновление партиклов
+        particles_group.update()
 
-        score_text = font.render(f'Score: {score}', True, (0, 0, 0))
+        # Отображение счета
+        font = pygame.font.Font(None, 36)
+        score_text = font.render(f'Score: {score}', True, BLACK)
         screen.blit(score_text, (10, 10))
 
-        current_time = pygame.time.get_ticks()
-        if current_time - last_beat_time >= BEAT_INTERVAL:
-            arrows.append(create_arrow())
-            last_beat_time = current_time
-
+        # Проверка окончания игры
         if not arrows and not game_over:
             game_over = True
 
         if game_over:
-            victory_text = font.render('Вы победили!', True, (0, 255, 0))
+            victory_text = font.render('Игра окончена!', True, (255, 0, 0))
             text_rect = victory_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
             screen.blit(victory_text, text_rect)
 
-        all_sprites.update()
+        # Отрисовка всех спрайтов на экране
         all_sprites.draw(screen)
-
         fading_arrows_group.draw(screen)
-        particles_group.draw(screen)  # Отрисовка партиклов
+        particles_group.draw(screen)
 
         pygame.display.flip()
         clock.tick(FPS)
 
-    print(f"Game Over! Your score: {score}")
     pygame.quit()
 
 
@@ -382,7 +393,6 @@ def main_menu():
         try:
             pygame.display.flip()
         except pygame.error:
-            print('')
             pygame.quit()
 
         clock.tick(FPS)
@@ -498,5 +508,7 @@ def confirm_exit():
 # Главная программа
 if __name__ == '__main__':
     all_sprites = pygame.sprite.Group()
+    fading_arrows_group = pygame.sprite.Group()
+    particles_group = pygame.sprite.Group()
     ARR = pygame.sprite.Group()
-    main_menu()  # Запускаем главное меню
+    main_menu()

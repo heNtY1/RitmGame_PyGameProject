@@ -1,0 +1,7 @@
+pip~=23.2.1
+wheel~=0.41.2
+setuptools~=68.2.0
+librosa~=0.10.2.post1
+numpy~=2.0.2
+pygame~=2.6.1
+pillow~=11.1.0

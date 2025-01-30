@@ -1,7 +1,6 @@
 import os
 import random
 import sys
-import datetime
 
 import librosa
 import numpy as np
@@ -20,7 +19,6 @@ FONT_SIZE = 40
 BEAT_INTERVAL = 500  # Интервал между появлениями стрелок (в миллисекундах)
 GRAVITY = 1
 screen_rect = (0, 0, WIDTH, HEIGHT)
-DELTA = datetime.timedelta(0, 0, 60)  # Регулировка частоты появления стрелок
 
 # Цвета
 WHITE = (255, 255, 255)
@@ -50,10 +48,10 @@ arrow_types = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 last_beat_time = 0
 
 # Загрузка спрайтов стрелок
-arrow_up_sprite = pygame.image.load(os.path.join('data', 'Вверх.png'))  # Убедитесь, что файл существует
-arrow_down_sprite = pygame.image.load(os.path.join('data', 'Вниз.png'))
-arrow_left_sprite = pygame.image.load(os.path.join('data', 'Влево.png'))
-arrow_right_sprite = pygame.image.load(os.path.join('data', 'Вправо.png'))
+arrow_up_sprite = pygame.image.load(os.path.join('data/sprite', 'Вверх.png'))  # Убедитесь, что файл существует
+arrow_down_sprite = pygame.image.load(os.path.join('data/sprite', 'Вниз.png'))
+arrow_left_sprite = pygame.image.load(os.path.join('data/sprite', 'Влево.png'))
+arrow_right_sprite = pygame.image.load(os.path.join('data/sprite', 'Вправо.png'))
 
 # Измените размер спрайтов, если необходимо
 arrow_up_sprite = pygame.transform.scale(arrow_up_sprite, (ARROW_SIZE, ARROW_SIZE))
@@ -63,11 +61,11 @@ arrow_right_sprite = pygame.transform.scale(arrow_right_sprite, (ARROW_SIZE, ARR
 
 # Музыка
 music_tracks = [
-    'moondeity-neon-blade-mp3.mp3',
-    'INTERWORLD — METAMORPHOSIS (www.lightaudio.ru).mp3',
-    'Весокосный год - Где-то там далеко-далеко есть земля (OST Дальнобойщики).mp3',
-    'Vova_Solodkov_-_Barabulka_78505531.mp3',
-    'Remzcore — Dynamite [SLOWED] (www.lightaudio.ru).mp3'
+    'Moondeity - Neon-blade.mp3',
+    'INTERWORLD - METAMORPHOSIS.mp3',
+    'Remzcore - Dynamite.mp3',
+    'Вова Солодков - Барабулька.mp3',
+    'Весокосный год - Там далеко-далеко...mp3',
 ]
 
 # Создание окна
@@ -150,7 +148,7 @@ class FadingArrow(pygame.sprite.Sprite):
 
 
 class Particle(pygame.sprite.Sprite):
-    fire = [pygame.image.load(os.path.join('data', 'star.png'))]
+    fire = [pygame.image.load(os.path.join('data/sprite', 'star.png'))]
     for scale in (5, 10, 20):
         fire.append(pygame.transform.scale(fire[0], (scale, scale)))
 
@@ -181,31 +179,30 @@ def create_particles(position):
 
 
 def load_beats(track_path):
-    y, sr = librosa.load(os.path.join('data', track_path))
-    onset_env = librosa.onset.onset_strength(y=y, sr=sr)
+    y, sr = librosa.load(os.path.join('data/music', track_path))
+    onset_env = librosa.onset.onset_strength(y=y, sr=10)
     times = librosa.frames_to_time(np.arange(len(onset_env)), sr=sr)
     onset_frames = librosa.onset.onset_detect(onset_envelope=onset_env, sr=sr)
     beats = times[onset_frames]
     return beats
 
 
-def game_loop():
+def game_loop(song):
     running = True
     score = 0
     game_over = False
-    dt = datetime.datetime.now()
+    arrows.clear(screen, screen)
 
     # Создание зоны поражения
     table_height = 80
     table = Table(0, HEIGHT - table_height, table_height)
 
-    # Случайный выбор трека
-    track_path = random.choice(music_tracks)
+    track_path = song
     beats = load_beats(track_path)
     last_beat_index = 0
 
     # Воспроизведение выбранного трека
-    pygame.mixer.music.load(os.path.join('data', track_path))
+    pygame.mixer.music.load(os.path.join('data/music', track_path))
     pygame.mixer.music.play(-1)  # Зацикливаем трек
 
     while running:
@@ -216,6 +213,11 @@ def game_loop():
                 running = False
 
             if event.type == pygame.KEYDOWN and not game_over:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.mixer.music.load(
+                        os.path.join('data/music', 'Kavinsky_feat_Lovefox_-_Nightcall.mp3'))
+                    pygame.mixer.music.play(-1)
+                    main_menu()
                 if arrows:
                     current_arrow = arrows.sprites()[0]
                     if event.key == key_bindings.get('UP') and current_arrow.get_type() == 'UP':
@@ -226,7 +228,6 @@ def game_loop():
                             # Создание частиц при успешном нажатии
                             create_particles(position)
                             current_arrow.delete()
-
                     elif event.key == key_bindings.get('DOWN') and current_arrow.get_type() == 'DOWN':
                         if pygame.sprite.collide_mask(current_arrow, table):
                             score += 1
@@ -255,14 +256,12 @@ def game_loop():
             if arrow.rect.y > HEIGHT:
                 score -= 1
                 arrow.delete()
-        dlt = datetime.datetime.now() - dt
         # Создание стрелок в ритме музыки
         current_time = pygame.time.get_ticks() / 1000.0
-        if last_beat_index < len(beats) and current_time >= beats[last_beat_index] and dlt > DELTA:
+        if last_beat_index < len(beats) and current_time >= beats[last_beat_index]:
             direction = random.choice(['UP', 'DOWN', 'LEFT', 'RIGHT'])
             Arrow(direction)
             last_beat_index += 1
-            dt = datetime.datetime.now()
 
         # Обновление fading arrows и particles
         fading_arrows_group.update()
@@ -317,7 +316,7 @@ def display_gif(frames, frame_index):
 
 # Главное меню
 def main_menu():
-    gif_frames = load_gif(os.path.join('data', 'гоха.gif'))  # Замените 'гоха.gif' на путь к вашему GIF
+    gif_frames = load_gif(os.path.join('data/sprite', 'гоха.gif'))  # Замените 'гоха.gif' на путь к вашему GIF
     total_frames = len(gif_frames)
     frame_index = 0
 
@@ -355,8 +354,10 @@ def main_menu():
                     elif settings_button_rect.collidepoint(mouse_pos):
                         change_key_bindings()  # Переход к экрану изменения раскладки
                     else:
-                        game_loop()
-                        # menu_songs()  # Запускаем игру
+                        try:
+                            menu_songs()  # Запускаем игру
+                        except pygame.error:
+                            pygame.quit()
         try:
             pygame.display.flip()
         except pygame.error:
@@ -365,44 +366,44 @@ def main_menu():
         clock.tick(FPS)
 
 
-# def menu_songs():
-#     gif_frames = load_gif(os.path.join('data', 'гоха.gif'))  # Замените 'гоха.gif' на путь к вашему GIF
-#     total_frames = len(gif_frames)
-#     frame_index = 0
-#
-#     content = []
-#     h = 20
-#
-#     # for i in music_tracks:
-#     #     button_text = font.render(i, True, WHITE)
-#     #     button_rect = button_text.get_rect(center=(WIDTH // 2, h))
-#     #     content.append((button_text, button_rect))
-#     #     h += 50
-#
-#     while True:
-#         screen.fill(WHITE)
-#
-#         # Отображение текущего кадра GIF с изменением размера
-#         display_gif(gif_frames, frame_index)
-#         frame_index = (frame_index + 1) % total_frames  # Переход к следующему кадру
-#         print(frame_index)
-#
-#         # for i in content:
-#         #     screen.blit(i[0], i[1])
-#
-#         # for event in pygame.event.get():
-#         #     if event.type == pygame.QUIT:
-#         #         pygame.quit()
-#         #         sys.exit()
-#         #     if event.type == pygame.MOUSEBUTTONDOWN:
-#         #         if event.button == 1:  # ЛКМ
-#         #             mouse_pos = event.pos
-#         #             for i in content:
-#         #                 if i[1].collidepoint(mouse_pos):
-#         #                     game_loop()  # Запускаем игру
-#                 # elif event.type == pygame.KEYDOWN:
-#                     # if event.key == ESCAPE:
-#                     #     main_menu()
+def menu_songs():
+    gif_frames = load_gif(os.path.join('data/sprite', 'гоха.gif'))  # Замените 'гоха.gif' на путь к вашему GIF
+    total_frames = len(gif_frames)
+    frame_index = 0
+
+    content = []
+    h = 40
+
+    for song in music_tracks:
+        button_text = font.render(f'* {song[:-4]}', True, WHITE)
+        button_rect = button_text.get_rect(topleft=(15, h))
+        content.append((button_text, button_rect, song))  # Список с text и rect кнопок
+        h += 70
+
+    while True:
+        screen.fill(WHITE)
+        display_gif(gif_frames, frame_index)
+        frame_index = (frame_index + 1) % total_frames  # Переход к следующему кадру
+
+        for i in content:
+            screen.blit(i[0], i[1])
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:  # ЛКМ
+                    mouse_pos = event.pos
+                    for but in content:
+                        if but[1].collidepoint(mouse_pos):
+                            game_loop(but[2])  # Запускаем игру
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    main_menu()
+
+        pygame.display.flip()
+        clock.tick(FPS)
 
 
 def change_key_binding(action, new_key):
@@ -414,7 +415,7 @@ def change_key_bindings():
     global key_bindings
     running = True
     selected_action = None  # Переменная для хранения выбранного действия
-    gif_frames = load_gif(os.path.join('data', 'гоха.gif'))  # Замените 'гоха.gif' на путь к вашему GIF
+    gif_frames = load_gif(os.path.join('data/sprite', 'гоха.gif'))  # Замените 'гоха.gif' на путь к вашему GIF
     total_frames = len(gif_frames)
     frame_index = 0
 
@@ -465,9 +466,8 @@ def change_key_bindings():
 
 
 def confirm_exit():
-    global yes_button_rect, yes_click_count
     yes_click_count = 0  # Сбрасываем счётчик при новом запросе на выход
-    gif_frames = load_gif(os.path.join('data', 'гоха.gif'))  # Замените 'гоха.gif' на путь к вашему GIF
+    gif_frames = load_gif(os.path.join('data/sprite', 'гоха.gif'))  # Замените 'гоха.gif' на путь к вашему GIF
     total_frames = len(gif_frames)
     frame_index = 0
 
@@ -521,7 +521,7 @@ if __name__ == '__main__':
     ARR = pygame.sprite.Group()
 
     # Воспроизведение выбранного трека
-    pygame.mixer.music.load(os.path.join('data', 'College_feat_Electric_Youth_-_A_Real_Hero_Drive.mp3'))
+    pygame.mixer.music.load(os.path.join('data/music', 'Kavinsky_feat_Lovefox_-_Nightcall.mp3'))
     pygame.mixer.music.play(-1)
     # Запуск главного меню
     main_menu()

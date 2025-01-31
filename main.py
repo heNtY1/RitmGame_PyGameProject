@@ -178,13 +178,11 @@ def create_particles(position):
         Particle(position, random.choice(numbers), random.choice(numbers))
 
 
-def load_beats(track_path):
+def llb(track_path):
     y, sr = librosa.load(os.path.join('data/music', track_path))
-    onset_env = librosa.onset.onset_strength(y=y, sr=sr)
-    times = librosa.frames_to_time(np.arange(len(onset_env)), sr=sr)
-    onset_frames = librosa.onset.onset_detect(onset_envelope=onset_env, sr=sr)
-    beats = times[onset_frames]
-    return beats
+    tempo, beatss = librosa.beat.beat_track(y=y, sr=sr)
+    beat_times = librosa.frames_to_time(beatss, sr=sr)
+    return beat_times
 
 
 def game_loop(song):
@@ -201,7 +199,7 @@ def game_loop(song):
     table = Table(0, HEIGHT - table_height, table_height)
 
     track_path = song
-    beats = load_beats(track_path)
+    beats = llb(track_path)
     last_beat_index = 0
 
     # Воспроизведение выбранного трека
@@ -274,23 +272,32 @@ def game_loop(song):
                 arrow.delete()
         # Создание стрелок в ритме музыки
         current_time = pygame.time.get_ticks() / 1000.0
-        if last_beat_index < len(beats) and current_time >= beats[last_beat_index]:
-            direction = random.choice(['UP', 'DOWN', 'LEFT', 'RIGHT'])
-            Arrow(direction)
-            last_beat_index += 1
+        try:
+            if beats[last_beat_index] - current_time < -0.05:
+                last_beat_index += 1
+            elif -0.5 <= beats[last_beat_index] - current_time <= 0.05:
+                direction = random.choice(['UP', 'DOWN', 'LEFT', 'RIGHT'])
+                Arrow(direction)
+                last_beat_index += 1
+        except IndexError:
+            victory_text = font.render('Игра окончена!', True, (255, 0, 0))
+            text_rect = victory_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+            screen.blit(victory_text, text_rect)
+            main_menu()
 
         # Обновление fading arrows и particles
         fading_arrows_group.update()
         particles_group.update()
 
         # Отображение счета
-        font = pygame.font.Font(None, 36)
-        score_text = font.render(f'Score: {score}', True, WHITE)
+        fontt = pygame.font.Font(None, 36)
+        score_text = fontt.render(f'Score: {score}', True, WHITE)
         screen.blit(score_text, (10, 10))
 
         # Проверка окончания игры
         if not arrows and not game_over:
-            game_over = True
+            pass
+            # game_over = True
 
         if game_over:
             victory_text = font.render('Игра окончена!', True, (255, 0, 0))

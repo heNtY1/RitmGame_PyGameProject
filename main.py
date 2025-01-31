@@ -180,7 +180,7 @@ def create_particles(position):
 
 def load_beats(track_path):
     y, sr = librosa.load(os.path.join('data/music', track_path))
-    onset_env = librosa.onset.onset_strength(y=y, sr=10)
+    onset_env = librosa.onset.onset_strength(y=y, sr=sr)
     times = librosa.frames_to_time(np.arange(len(onset_env)), sr=sr)
     onset_frames = librosa.onset.onset_detect(onset_envelope=onset_env, sr=sr)
     beats = times[onset_frames]
@@ -191,6 +191,9 @@ def game_loop(song):
     running = True
     score = 0
     game_over = False
+    gif_frames = load_gif(os.path.join('data/sprite', 'Ded-flex.gif.gif'))  # Замените 'гоха.gif' на путь к вашему GIF
+    total_frames = len(gif_frames)
+    frame_index = 0
     arrows.clear(screen, screen)
 
     # Создание зоны поражения
@@ -207,6 +210,8 @@ def game_loop(song):
 
     while running:
         screen.fill(WHITE)
+        display_gif(gif_frames, int(frame_index))
+        frame_index = (frame_index + 0.5) % total_frames
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -219,36 +224,47 @@ def game_loop(song):
                     pygame.mixer.music.play(-1)
                     main_menu()
                 if arrows:
-                    current_arrow = arrows.sprites()[0]
-                    if event.key == key_bindings.get('UP') and current_arrow.get_type() == 'UP':
-                        if pygame.sprite.collide_mask(current_arrow, table):
-                            score += 1
-                            position = current_arrow.get_cor()
-                            FadingArrow(current_arrow.image.copy(), position)
-                            # Создание частиц при успешном нажатии
-                            create_particles(position)
-                            current_arrow.delete()
-                    elif event.key == key_bindings.get('DOWN') and current_arrow.get_type() == 'DOWN':
-                        if pygame.sprite.collide_mask(current_arrow, table):
-                            score += 1
-                            position = current_arrow.get_cor()
-                            FadingArrow(current_arrow.image.copy(), position)
-                            create_particles(position)
-                            current_arrow.delete()
-                    elif event.key == key_bindings.get('LEFT') and current_arrow.get_type() == 'LEFT':
-                        if pygame.sprite.collide_mask(current_arrow, table):
-                            score += 1
-                            position = current_arrow.get_cor()
-                            FadingArrow(current_arrow.image.copy(), position)
-                            create_particles(position)
-                            current_arrow.delete()
-                    elif event.key == key_bindings.get('RIGHT') and current_arrow.get_type() == 'RIGHT':
-                        if pygame.sprite.collide_mask(current_arrow, table):
-                            score += 1
-                            position = current_arrow.get_cor()
-                            FadingArrow(current_arrow.image.copy(), position)
-                            create_particles(position)
-                            current_arrow.delete()
+                    if event.key == key_bindings.get('UP'):
+                        for curar in arrows.sprites():
+                            if curar.get_type() == 'UP':
+                                if pygame.sprite.collide_mask(curar, table):
+                                    score += 1
+                                    position = curar.get_cor()
+                                    FadingArrow(curar.image.copy(), position)
+                                    # Создание частиц при успешном нажатии
+                                    create_particles(position)
+                                    curar.delete()
+                                    break
+                    elif event.key == key_bindings.get('DOWN'):
+                        for curar in arrows.sprites():
+                            if curar.get_type() == 'DOWN':
+                                if pygame.sprite.collide_mask(curar, table):
+                                    score += 1
+                                    position = curar.get_cor()
+                                    FadingArrow(curar.image.copy(), position)
+                                    create_particles(position)
+                                    curar.delete()
+                                    break
+                    elif event.key == key_bindings.get('LEFT'):
+                        for curar in arrows.sprites():
+                            if curar.get_type() == 'LEFT':
+                                if pygame.sprite.collide_mask(curar, table):
+                                    score += 1
+                                    position = curar.get_cor()
+                                    FadingArrow(curar.image.copy(), position)
+                                    create_particles(position)
+                                    curar.delete()
+                                    break
+                    elif event.key == key_bindings.get('RIGHT'):
+                        for curar in arrows.sprites():
+                            if curar.get_type() == 'RIGHT':
+                                if pygame.sprite.collide_mask(curar, table):
+                                    score += 1
+                                    position = curar.get_cor()
+                                    FadingArrow(curar.image.copy(), position)
+                                    create_particles(position)
+                                    curar.delete()
+                                    break
         # Обновление стрелок и удаление их за пределами экрана
         arrows.update()
 
@@ -269,7 +285,7 @@ def game_loop(song):
 
         # Отображение счета
         font = pygame.font.Font(None, 36)
-        score_text = font.render(f'Score: {score}', True, BLACK)
+        score_text = font.render(f'Score: {score}', True, WHITE)
         screen.blit(score_text, (10, 10))
 
         # Проверка окончания игры

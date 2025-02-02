@@ -7,6 +7,7 @@ import librosa
 import pygame
 from PIL import Image
 
+NAME = input('Введите никнейм: ')
 # Инициализация Pygame
 pygame.init()
 
@@ -76,6 +77,7 @@ music_tracks = [
 ]
 hit_sound = pygame.mixer.Sound(os.path.join('data/music', 'попал.mp3'))
 miss_sound = pygame.mixer.Sound(os.path.join('data/music', 'промах.mp3'))
+menu_sound = pygame.mixer.Sound(os.path.join('data/music', 'Kavinsky_feat_Lovefox_-_Nightcall.mp3'))
 
 # Создание окна
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -84,10 +86,9 @@ clock = pygame.time.Clock()
 font_path = os.path.join('data', 'шрифт.ttf')
 font_size = 36
 font = pygame.font.Font(font_path, font_size)
+font2 = pygame.font.Font(font_path, 25)
 
 # Переменные для кнопки выхода
-exit_button_text = font.render("Выход", True, WHITE)
-exit_button_rect = exit_button_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 100))
 exit_click_count = 0
 yes_button_text = font.render("Да", True, WHITE)
 no_button_text = font.render("Нет", True, WHITE)
@@ -212,34 +213,27 @@ def initialize_database():
 
 
 def add_score(username, score):
-    conn = sqlite3.connect('leaderboard.db')
-    cursor = conn.cursor()
-
-    cursor.execute('INSERT INTO leaderboard (username, score) VALUES (?, ?)', (username, score))
-
-    conn.commit()
-    conn.close()
+    with open('data/liderboard.txt', mode='a', encoding='utf-8') as file:
+        file.write(f'{username} {score}' + '\n')
 
 
 def get_leaderboard():
-    conn = sqlite3.connect('leaderboard.db')
-    cursor = conn.cursor()
+    sps = []
+    with open('data/liderboard.txt', encoding='utf-8') as file:
+        text = file.readlines()
+        for i in text:
+            a = i[:-1].split()
+            sps.append((a[0], int(a[1])))
+    return sorted(sps, key=lambda x: x[1] * -1)[:3]
 
-    cursor.execute('SELECT username, score FROM leaderboard ORDER BY score DESC LIMIT 10')
-    leaderboard = cursor.fetchall()
 
-    conn.close()
-    return leaderboard
-
-
-def game_loop(song):
+def game_loop(song, bets):
     global ARROW_SPEED, BEAT_INTERVAL
     ARROW_SPEED = DIFFICULTY_SETTINGS[current_difficulty]['ARROW_SPEED']
     BEAT_INTERVAL = DIFFICULTY_SETTINGS[current_difficulty]['BEAT_INTERVAL']
 
     running = True
     score = 0
-    game_over = False
     gif_frames = load_gif(os.path.join('data/sprite', 'Ded-flex.gif.gif'))
     total_frames = len(gif_frames)
     frame_index = 0
@@ -250,10 +244,11 @@ def game_loop(song):
     table = Table(0, HEIGHT - table_height, table_height)
 
     track_path = song
-    beats = llb(track_path)
+    beats = bets
     last_beat_index = 0
 
     # Play the selected track
+    menu_sound.stop()
     pygame.mixer.music.load(os.path.join('data/music', track_path))
     pygame.mixer.music.play(-1)
 
@@ -266,11 +261,10 @@ def game_loop(song):
             if event.type == pygame.QUIT:
                 running = False
 
-            if event.type == pygame.KEYDOWN and not game_over:
+            if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    pygame.mixer.music.load(
-                        os.path.join('data/music', 'Kavinsky_feat_Lovefox_-_Nightcall.mp3'))
-                    pygame.mixer.music.play(-1)
+                    pygame.mixer.music.stop()
+                    menu_sound.play(-1)
                     main_menu()
                 if arrows:
                     if event.key == key_bindings.get('UP'):
@@ -330,7 +324,6 @@ def game_loop(song):
                                     score -= 0.5
                                     miss_sound.play()
 
-
         # Обновление стрелок и удаление их за пределами экрана
         arrows.update()
 
@@ -348,11 +341,13 @@ def game_loop(song):
                 direction = random.choice(['UP', 'DOWN', 'LEFT', 'RIGHT'])
                 Arrow(direction)
                 last_beat_index += 1
-        except IndexError:
+        except IndexError:  # Проверка окончания игры
+            pygame.mixer.music.stop()
+            menu_sound.play(-1)
+            add_score(NAME, score)
             victory_text = font.render('Игра окончена!', True, (255, 0, 0))
             text_rect = victory_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
             screen.blit(victory_text, text_rect)
-            main_menu()
 
         # Обновление fading arrows и particles
         fading_arrows_group.update()
@@ -362,17 +357,6 @@ def game_loop(song):
         fontt = pygame.font.Font(None, 36)
         score_text = fontt.render(f'Score: {score}', True, WHITE)
         screen.blit(score_text, (10, 10))
-
-        # Проверка окончания игры
-        if not arrows and not game_over:
-            pass
-            # game_over = True
-
-        if game_over:
-            victory_text = font.render('Игра окончена!', True, (255, 0, 0))
-            text_rect = victory_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
-            screen.blit(victory_text, text_rect)
-            main_menu()
 
         # Отрисовка всех спрайтов на экране
         all_sprites.draw(screen)
@@ -384,14 +368,25 @@ def game_loop(song):
 
     pygame.quit()
 
-def end_game(score):
-    username = input("Введите ваше имя для лидерборда: ")
-    add_score(username, score)
 
-    print("Лидерборд:")
-    leaderboard = get_leaderboard()
-    for entry in leaderboard:
-        print(f"{entry[0]}: {entry[1]}")
+def load_scene(song):
+    k = 1
+    surf = pygame.Surface((WIDTH, WIDTH))
+    surf.fill(BLACK)
+    victory_text = font.render('loading...', True, (255, 0, 0))
+    text_rect = victory_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+    surf.set_alpha(k)
+    while k != 255:
+        surf.set_alpha(k)
+        screen.blit(surf, (0, 0))
+        screen.blit(victory_text, text_rect)
+        k += 1
+        pygame.display.flip()
+        clock.tick(FPS)
+
+    beats = llb(song)
+    game_loop(song, beats)
+
 
 def load_gif(filename):
     image = Image.open(filename)
@@ -411,7 +406,10 @@ def load_gif(filename):
 # Функция для отображения кадров GIF с изменением размера
 def display_gif(frames, frame_index):
     scaled_frame = pygame.transform.scale(frames[frame_index], (WIDTH, HEIGHT))
-    screen.blit(scaled_frame, (0, 0))
+    try:
+        screen.blit(scaled_frame, (0, 0))
+    except:
+        pass
 
 
 # Главное меню
@@ -419,12 +417,21 @@ def main_menu():
     gif_frames = load_gif(os.path.join('data/sprite', 'гоха.gif'))
     total_frames = len(gif_frames)
     frame_index = 0
+    liders = get_leaderboard()
 
     settings_button_text = font.render("Настройки управления", True, WHITE)
     settings_button_rect = settings_button_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 50))
 
-    difficulty_button_text = font.render("Выбор сложности", True, WHITE)
-    difficulty_button_rect = difficulty_button_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 150))
+    difficulty_button_text = font.render(f"Выбор сложности: {current_difficulty}", True, WHITE)
+    difficulty_button_rect = difficulty_button_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 100))
+
+    exit_button_text = font.render("Выход", True, WHITE)
+    exit_button_rect = exit_button_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 150))
+
+    liderboard_text = font2.render(f"Лидеры:  {liders[0][0]} - {liders[0][1]}  "
+                                   f"{liders[1][0]} - {liders[1][1]}  "
+                                   f"{liders[2][0]} - {liders[2][1]}  ", True, WHITE)
+    liderboard_rect = difficulty_button_text.get_rect(topleft=(0, 0))
 
     while True:
         screen.fill(WHITE)
@@ -444,6 +451,7 @@ def main_menu():
         # Отображение кнопки "Настройки управления"
         screen.blit(settings_button_text, settings_button_rect)
         screen.blit(difficulty_button_text, difficulty_button_rect)
+        screen.blit(liderboard_text, liderboard_rect)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -502,7 +510,8 @@ def menu_songs():
                     mouse_pos = event.pos
                     for but in content:
                         if but[1].collidepoint(mouse_pos):
-                            game_loop(but[2])  # Запускаем игру
+                            load_scene(but[2])
+                            # game_loop(but[2])  # Запускаем игру
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     main_menu()
@@ -569,6 +578,7 @@ def change_key_bindings():
         pygame.display.flip()
         clock.tick(FPS)
 
+
 def select_difficulty():
     global current_difficulty
     difficulties = list(DIFFICULTY_SETTINGS.keys())
@@ -576,30 +586,37 @@ def select_difficulty():
     total_frames = len(gif_frames)
     frame_index = 0
 
+    button = []
+    y_position = HEIGHT // 2 - 50
+    for difficulty in difficulties:
+        difficulty_text = font.render(difficulty, True, WHITE)
+        difficulty_rect = difficulty_text.get_rect(center=(WIDTH // 2, y_position))
+        screen.blit(difficulty_text, difficulty_rect)
+        button.append((difficulty_text, difficulty_rect, difficulty))
+        y_position += 50
+
     while True:
         screen.fill(WHITE)
         display_gif(gif_frames, frame_index)
         frame_index = (frame_index + 1) % total_frames
 
-        y_position = HEIGHT // 2 - 50
-        for difficulty in difficulties:
-            difficulty_text = font.render(difficulty, True, WHITE)
-            difficulty_rect = difficulty_text.get_rect(center=(WIDTH // 2, y_position))
-            screen.blit(difficulty_text, difficulty_rect)
-            y_position += 50
+        for but in button:
+            screen.blit(but[0], but[1])
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    main_menu()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left mouse button
                     mouse_pos = event.pos
-                    for i, difficulty in enumerate(difficulties):
-                        if (WIDTH // 2 - 50 < mouse_pos[0] < WIDTH // 2 + 50 and
-                                HEIGHT // 2 - 50 + i * 50 < mouse_pos[1] < HEIGHT // 2 - 50 + (i + 1) * 50):
-                            current_difficulty = difficulty
-                            return  # Exit difficulty selection
+                    for i in button:
+                        if i[1].collidepoint(mouse_pos):
+                            current_difficulty = i[2]
+                            main_menu()
 
         pygame.display.flip()
         clock.tick(FPS)
@@ -634,6 +651,9 @@ def confirm_exit():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    main_menu()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = event.pos
                 if yes_button_rect.collidepoint(mouse_pos):
@@ -659,9 +679,7 @@ if __name__ == '__main__':
     fading_arrows_group = pygame.sprite.Group()
     particles_group = pygame.sprite.Group()
     ARR = pygame.sprite.Group()
-
     # Воспроизведение выбранного трека
-    pygame.mixer.music.load(os.path.join('data/music', 'Kavinsky_feat_Lovefox_-_Nightcall.mp3'))
-    pygame.mixer.music.play(-1)
+    menu_sound.play(-1)
     # Запуск главного меню
     main_menu()

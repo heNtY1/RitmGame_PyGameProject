@@ -3,7 +3,6 @@ import random
 import sys
 
 import librosa
-import numpy as np
 import pygame
 from PIL import Image
 
@@ -46,6 +45,13 @@ fixed_x_positions = {
 # Стрелки
 arrow_types = ['UP', 'DOWN', 'LEFT', 'RIGHT']
 last_beat_time = 0
+
+DIFFICULTY_SETTINGS = {
+    'EASY': {'ARROW_SPEED': 3, 'BEAT_INTERVAL': 700},
+    'MEDIUM': {'ARROW_SPEED': 5, 'BEAT_INTERVAL': 500},
+    'HARD': {'ARROW_SPEED': 7, 'BEAT_INTERVAL': 300},
+}
+current_difficulty = 'MEDIUM'
 
 # Загрузка спрайтов стрелок
 arrow_up_sprite = pygame.image.load(os.path.join('data/sprite', 'Вверх.png'))  # Убедитесь, что файл существует
@@ -186,15 +192,19 @@ def llb(track_path):
 
 
 def game_loop(song):
+    global ARROW_SPEED, BEAT_INTERVAL
+    ARROW_SPEED = DIFFICULTY_SETTINGS[current_difficulty]['ARROW_SPEED']
+    BEAT_INTERVAL = DIFFICULTY_SETTINGS[current_difficulty]['BEAT_INTERVAL']
+
     running = True
     score = 0
     game_over = False
-    gif_frames = load_gif(os.path.join('data/sprite', 'Ded-flex.gif.gif'))  # Замените 'гоха.gif' на путь к вашему GIF
+    gif_frames = load_gif(os.path.join('data/sprite', 'Ded-flex.gif.gif'))
     total_frames = len(gif_frames)
     frame_index = 0
     arrows.clear(screen, screen)
 
-    # Создание зоны поражения
+    # Create the table
     table_height = 80
     table = Table(0, HEIGHT - table_height, table_height)
 
@@ -202,9 +212,9 @@ def game_loop(song):
     beats = llb(track_path)
     last_beat_index = 0
 
-    # Воспроизведение выбранного трека
+    # Play the selected track
     pygame.mixer.music.load(os.path.join('data/music', track_path))
-    pygame.mixer.music.play(-1)  # Зацикливаем трек
+    pygame.mixer.music.play(-1)
 
     while running:
         screen.fill(WHITE)
@@ -339,13 +349,15 @@ def display_gif(frames, frame_index):
 
 # Главное меню
 def main_menu():
-    gif_frames = load_gif(os.path.join('data/sprite', 'гоха.gif'))  # Замените 'гоха.gif' на путь к вашему GIF
+    gif_frames = load_gif(os.path.join('data/sprite', 'гоха.gif'))
     total_frames = len(gif_frames)
     frame_index = 0
 
-    # Кнопка "Настройки управления"
     settings_button_text = font.render("Настройки управления", True, WHITE)
     settings_button_rect = settings_button_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 50))
+
+    difficulty_button_text = font.render("Выбор сложности", True, WHITE)
+    difficulty_button_rect = difficulty_button_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 150))
 
     while True:
         screen.fill(WHITE)
@@ -364,6 +376,7 @@ def main_menu():
 
         # Отображение кнопки "Настройки управления"
         screen.blit(settings_button_text, settings_button_rect)
+        screen.blit(difficulty_button_text, difficulty_button_rect)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -376,6 +389,8 @@ def main_menu():
                         confirm_exit()  # Переход к экрану подтверждения выхода
                     elif settings_button_rect.collidepoint(mouse_pos):
                         change_key_bindings()  # Переход к экрану изменения раскладки
+                    elif difficulty_button_rect.collidepoint(mouse_pos):
+                        select_difficulty()
                     else:
                         try:
                             menu_songs()  # Запускаем игру
@@ -483,6 +498,41 @@ def change_key_bindings():
 
             if event.type == pygame.KEYUP and event.key == pygame.K_ESCAPE:
                 running = False  # Выход из меню переназначения по нажатию ESC
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+def select_difficulty():
+    global current_difficulty
+    difficulties = list(DIFFICULTY_SETTINGS.keys())
+    gif_frames = load_gif(os.path.join('data/sprite', 'гоха.gif'))
+    total_frames = len(gif_frames)
+    frame_index = 0
+
+    while True:
+        screen.fill(WHITE)
+        display_gif(gif_frames, frame_index)
+        frame_index = (frame_index + 1) % total_frames
+
+        y_position = HEIGHT // 2 - 50
+        for difficulty in difficulties:
+            difficulty_text = font.render(difficulty, True, WHITE)
+            difficulty_rect = difficulty_text.get_rect(center=(WIDTH // 2, y_position))
+            screen.blit(difficulty_text, difficulty_rect)
+            y_position += 50
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:  # Left mouse button
+                    mouse_pos = event.pos
+                    for i, difficulty in enumerate(difficulties):
+                        if (WIDTH // 2 - 50 < mouse_pos[0] < WIDTH // 2 + 50 and
+                                HEIGHT // 2 - 50 + i * 50 < mouse_pos[1] < HEIGHT // 2 - 50 + (i + 1) * 50):
+                            current_difficulty = difficulty
+                            return  # Exit difficulty selection
 
         pygame.display.flip()
         clock.tick(FPS)

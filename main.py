@@ -1,7 +1,8 @@
 import os
 import random
-import sys
 import sqlite3
+import sys
+
 import librosa
 import pygame
 from PIL import Image
@@ -193,6 +194,44 @@ def llb(track_path):
     return beat_times
 
 
+def initialize_database():
+    conn = sqlite3.connect('leaderboard.db')
+    cursor = conn.cursor()
+
+    # Создание таблицы, если она не существует
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS leaderboard (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            score INTEGER NOT NULL
+        )
+    ''')
+
+    conn.commit()
+    conn.close()
+
+
+def add_score(username, score):
+    conn = sqlite3.connect('leaderboard.db')
+    cursor = conn.cursor()
+
+    cursor.execute('INSERT INTO leaderboard (username, score) VALUES (?, ?)', (username, score))
+
+    conn.commit()
+    conn.close()
+
+
+def get_leaderboard():
+    conn = sqlite3.connect('leaderboard.db')
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT username, score FROM leaderboard ORDER BY score DESC LIMIT 10')
+    leaderboard = cursor.fetchall()
+
+    conn.close()
+    return leaderboard
+
+
 def game_loop(song):
     global ARROW_SPEED, BEAT_INTERVAL
     ARROW_SPEED = DIFFICULTY_SETTINGS[current_difficulty]['ARROW_SPEED']
@@ -300,7 +339,6 @@ def game_loop(song):
                 score -= 1
                 miss_sound.play()
                 arrow.delete()
-
         # Создание стрелок в ритме музыки
         current_time = pygame.time.get_ticks() / 1000.0
         try:
@@ -311,12 +349,14 @@ def game_loop(song):
                 Arrow(direction)
                 last_beat_index += 1
         except IndexError:
-            # Если песни закончились, игрок победил
-            game_over = True
+            victory_text = font.render('Игра окончена!', True, (255, 0, 0))
+            text_rect = victory_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+            screen.blit(victory_text, text_rect)
+            main_menu()
 
-        # Проверка условий победы и поражения
-        if score <= -15:
-            game_over = True  # Условие поражения
+        # Обновление fading arrows и particles
+        fading_arrows_group.update()
+        particles_group.update()
 
         # Отображение счета
         fontt = pygame.font.Font(None, 36)
@@ -324,17 +364,15 @@ def game_loop(song):
         screen.blit(score_text, (10, 10))
 
         # Проверка окончания игры
+        if not arrows and not game_over:
+            pass
+            # game_over = True
+
         if game_over:
-            if score <= -15:
-                victory_text = font.render('Вы проиграли!', True, (255, 0, 0))
-            else:
-                victory_text = font.render('Вы победили!', True, (0, 255, 0))
+            victory_text = font.render('Игра окончена!', True, (255, 0, 0))
             text_rect = victory_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
             screen.blit(victory_text, text_rect)
-            pygame.display.flip()
-            pygame.time.wait(2000)  # Задержка перед завершением
-            # end_game(score)  # Вызов функции для сохранения результата
-            break  # Выход из игрового цикла
+            main_menu()
 
         # Отрисовка всех спрайтов на экране
         all_sprites.draw(screen)
@@ -346,6 +384,14 @@ def game_loop(song):
 
     pygame.quit()
 
+def end_game(score):
+    username = input("Введите ваше имя для лидерборда: ")
+    add_score(username, score)
+
+    print("Лидерборд:")
+    leaderboard = get_leaderboard()
+    for entry in leaderboard:
+        print(f"{entry[0]}: {entry[1]}")
 
 def load_gif(filename):
     image = Image.open(filename)
@@ -557,52 +603,6 @@ def select_difficulty():
 
         pygame.display.flip()
         clock.tick(FPS)
-
-
-# def initialize_database():
-#     conn = sqlite3.connect('leaderboard.db')
-#     cursor = conn.cursor()
-#
-#     cursor.execute('''
-#         CREATE TABLE IF NOT EXISTS leaderboard (
-#             id INTEGER PRIMARY KEY AUTOINCREMENT,
-#             username TEXT NOT NULL,
-#             score INTEGER NOT NULL
-#         )
-#     ''')
-#
-#     conn.commit()
-#     conn.close()
-
-
-# def add_score(username, score):
-#     conn = sqlite3.connect('leaderboard.db')
-#     cursor = conn.cursor()
-#
-#     cursor.execute('INSERT INTO leaderboard (username, score) VALUES (?, ?)', (username, score))
-#
-#     conn.commit()
-#     conn.close()
-
-
-# def get_leaderboard():
-#     conn = sqlite3.connect('leaderboard.db')
-#     cursor = conn.cursor()
-#
-#     cursor.execute('SELECT username, score FROM leaderboard ORDER BY score DESC LIMIT 10')
-#     leaderboard = cursor.fetchall()
-#
-#     conn.close()
-#     return leaderboard
-
-
-# def end_game(score):
-#     username = input("Введите ваше имя для лидерборда: ")
-#     add_score(username, score)
-#
-#     print("Лидерборд:")
-#     for entry in get_leaderboard():
-#         print(f"{entry[0]}: {entry[1]}")
 
 
 def confirm_exit():

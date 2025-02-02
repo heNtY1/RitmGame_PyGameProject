@@ -1,7 +1,7 @@
 import os
 import random
 import sys
-
+import sqlite3
 import librosa
 import pygame
 from PIL import Image
@@ -73,6 +73,8 @@ music_tracks = [
     'Вова Солодков - Барабулька.mp3',
     'Весокосный год - Там далеко-далеко...mp3',
 ]
+hit_sound = pygame.mixer.Sound(os.path.join('data/music', 'попал.mp3'))
+miss_sound = pygame.mixer.Sound(os.path.join('data/music', 'промах.mp3'))
 
 # Создание окна
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -237,49 +239,68 @@ def game_loop(song):
                             if curar.get_type() == 'UP':
                                 if pygame.sprite.collide_mask(curar, table):
                                     score += 1
+                                    hit_sound.play()
                                     position = curar.get_cor()
                                     FadingArrow(curar.image.copy(), position)
-                                    # Создание частиц при успешном нажатии
                                     create_particles(position)
                                     curar.delete()
                                     break
+                                elif not pygame.sprite.collide_mask(curar, table):
+                                    score -= 0.5
+                                    miss_sound.play()
                     elif event.key == key_bindings.get('DOWN'):
                         for curar in arrows.sprites():
                             if curar.get_type() == 'DOWN':
                                 if pygame.sprite.collide_mask(curar, table):
                                     score += 1
+                                    hit_sound.play()
                                     position = curar.get_cor()
                                     FadingArrow(curar.image.copy(), position)
                                     create_particles(position)
                                     curar.delete()
                                     break
+                                elif not pygame.sprite.collide_mask(curar, table):
+                                    score -= 0.5
+                                    miss_sound.play()
                     elif event.key == key_bindings.get('LEFT'):
                         for curar in arrows.sprites():
                             if curar.get_type() == 'LEFT':
                                 if pygame.sprite.collide_mask(curar, table):
                                     score += 1
+                                    hit_sound.play()
                                     position = curar.get_cor()
                                     FadingArrow(curar.image.copy(), position)
                                     create_particles(position)
                                     curar.delete()
                                     break
+                                elif not pygame.sprite.collide_mask(curar, table):
+                                    score -= 0.5
+                                    miss_sound.play()
                     elif event.key == key_bindings.get('RIGHT'):
                         for curar in arrows.sprites():
                             if curar.get_type() == 'RIGHT':
                                 if pygame.sprite.collide_mask(curar, table):
                                     score += 1
+                                    hit_sound.play()
                                     position = curar.get_cor()
                                     FadingArrow(curar.image.copy(), position)
                                     create_particles(position)
                                     curar.delete()
                                     break
+                                elif not pygame.sprite.collide_mask(curar, table):
+                                    score -= 0.5
+                                    miss_sound.play()
+
+
         # Обновление стрелок и удаление их за пределами экрана
         arrows.update()
 
         for arrow in arrows:
             if arrow.rect.y > HEIGHT:
                 score -= 1
+                miss_sound.play()
                 arrow.delete()
+
         # Создание стрелок в ритме музыки
         current_time = pygame.time.get_ticks() / 1000.0
         try:
@@ -290,14 +311,12 @@ def game_loop(song):
                 Arrow(direction)
                 last_beat_index += 1
         except IndexError:
-            victory_text = font.render('Игра окончена!', True, (255, 0, 0))
-            text_rect = victory_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
-            screen.blit(victory_text, text_rect)
-            main_menu()
+            # Если песни закончились, игрок победил
+            game_over = True
 
-        # Обновление fading arrows и particles
-        fading_arrows_group.update()
-        particles_group.update()
+        # Проверка условий победы и поражения
+        if score <= -15:
+            game_over = True  # Условие поражения
 
         # Отображение счета
         fontt = pygame.font.Font(None, 36)
@@ -305,15 +324,17 @@ def game_loop(song):
         screen.blit(score_text, (10, 10))
 
         # Проверка окончания игры
-        if not arrows and not game_over:
-            pass
-            # game_over = True
-
         if game_over:
-            victory_text = font.render('Игра окончена!', True, (255, 0, 0))
+            if score <= -15:
+                victory_text = font.render('Вы проиграли!', True, (255, 0, 0))
+            else:
+                victory_text = font.render('Вы победили!', True, (0, 255, 0))
             text_rect = victory_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
             screen.blit(victory_text, text_rect)
-            main_menu()
+            pygame.display.flip()
+            pygame.time.wait(2000)  # Задержка перед завершением
+            # end_game(score)  # Вызов функции для сохранения результата
+            break  # Выход из игрового цикла
 
         # Отрисовка всех спрайтов на экране
         all_sprites.draw(screen)
@@ -536,6 +557,52 @@ def select_difficulty():
 
         pygame.display.flip()
         clock.tick(FPS)
+
+
+# def initialize_database():
+#     conn = sqlite3.connect('leaderboard.db')
+#     cursor = conn.cursor()
+#
+#     cursor.execute('''
+#         CREATE TABLE IF NOT EXISTS leaderboard (
+#             id INTEGER PRIMARY KEY AUTOINCREMENT,
+#             username TEXT NOT NULL,
+#             score INTEGER NOT NULL
+#         )
+#     ''')
+#
+#     conn.commit()
+#     conn.close()
+
+
+# def add_score(username, score):
+#     conn = sqlite3.connect('leaderboard.db')
+#     cursor = conn.cursor()
+#
+#     cursor.execute('INSERT INTO leaderboard (username, score) VALUES (?, ?)', (username, score))
+#
+#     conn.commit()
+#     conn.close()
+
+
+# def get_leaderboard():
+#     conn = sqlite3.connect('leaderboard.db')
+#     cursor = conn.cursor()
+#
+#     cursor.execute('SELECT username, score FROM leaderboard ORDER BY score DESC LIMIT 10')
+#     leaderboard = cursor.fetchall()
+#
+#     conn.close()
+#     return leaderboard
+
+
+# def end_game(score):
+#     username = input("Введите ваше имя для лидерборда: ")
+#     add_score(username, score)
+#
+#     print("Лидерборд:")
+#     for entry in get_leaderboard():
+#         print(f"{entry[0]}: {entry[1]}")
 
 
 def confirm_exit():

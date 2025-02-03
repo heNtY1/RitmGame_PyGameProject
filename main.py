@@ -1,13 +1,11 @@
 import os
 import random
-import sqlite3
 import sys
 
 import librosa
 import pygame
 from PIL import Image
 
-NAME = input('Введите никнейм: ')
 # Инициализация Pygame
 pygame.init()
 
@@ -20,6 +18,7 @@ FONT_SIZE = 40
 BEAT_INTERVAL = 500  # Интервал между появлениями стрелок (в миллисекундах)
 GRAVITY = 1
 screen_rect = (0, 0, WIDTH, HEIGHT)
+nickname = ''
 
 # Цвета
 WHITE = (255, 255, 255)
@@ -195,23 +194,6 @@ def llb(track_path):
     return beat_times
 
 
-def initialize_database():
-    conn = sqlite3.connect('leaderboard.db')
-    cursor = conn.cursor()
-
-    # Создание таблицы, если она не существует
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS leaderboard (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            score INTEGER NOT NULL
-        )
-    ''')
-
-    conn.commit()
-    conn.close()
-
-
 def add_score(username, score):
     with open('data/liderboard.txt', mode='a', encoding='utf-8') as file:
         file.write(f'{username} {score}' + '\n')
@@ -344,7 +326,7 @@ def game_loop(song, bets):
         except IndexError:  # Проверка окончания игры
             pygame.mixer.music.stop()
             menu_sound.play(-1)
-            add_score(NAME, score)
+            add_score(nickname, score)
             victory_text = font.render('Игра окончена!', True, (255, 0, 0))
             text_rect = victory_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
             screen.blit(victory_text, text_rect)
@@ -411,13 +393,44 @@ def display_gif(frames, frame_index):
     except:
         pass
 
+def get_nickname():
+    global nickname
+    input_active = True
+    while input_active:
+        # Display the instruction for entering the nickname
+        nickname_prompt = font.render("Введите ваш никнейм:", True, WHITE)
+        prompt_rect = nickname_prompt.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 50))
+        screen.blit(nickname_prompt, prompt_rect)
 
+        # Display the current nickname input
+        nickname_text = font.render(nickname, True, WHITE)
+        nickname_rect = nickname_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+        screen.blit(nickname_text, nickname_rect)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:  # Confirm nickname
+                    input_active = False
+                elif event.key == pygame.K_BACKSPACE:  # Handle backspace
+                    nickname = nickname[:-1]
+                else:
+                    nickname += event.unicode  # Add the character to the nickname
+
+        pygame.display.flip()
+        clock.tick(FPS)
+
+    return nickname
 # Главное меню
 def main_menu():
     gif_frames = load_gif(os.path.join('data/sprite', 'гоха.gif'))
     total_frames = len(gif_frames)
     frame_index = 0
-    liders = get_leaderboard()
+
+    # Get the player's nickname
+    player_nickname = get_nickname()
 
     settings_button_text = font.render("Настройки управления", True, WHITE)
     settings_button_rect = settings_button_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 50))
@@ -428,27 +441,26 @@ def main_menu():
     exit_button_text = font.render("Выход", True, WHITE)
     exit_button_rect = exit_button_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 150))
 
+    liders = get_leaderboard()
     liderboard_text = font2.render(f"Лидеры:  {liders[0][0]} - {liders[0][1]}  "
                                    f"{liders[1][0]} - {liders[1][1]}  "
                                    f"{liders[2][0]} - {liders[2][1]}  ", True, WHITE)
     liderboard_rect = difficulty_button_text.get_rect(topleft=(0, 0))
 
     while True:
-        screen.fill(WHITE)
-
-        # Отображение текущего кадра GIF с изменением размера
+        # Display current frame of GIF
         display_gif(gif_frames, frame_index)
-        frame_index = (frame_index + 1) % total_frames  # Переход к следующему кадру
+        frame_index = (frame_index + 1) % total_frames
 
-        # Отображение текста "Нажми чтобы начать"
+        # Display the "Press to start" text
         start_text = font.render("Нажми чтобы начать", True, WHITE)
         text_rect = start_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
         screen.blit(start_text, text_rect)
 
-        # Отображение кнопки "Выход"
+        # Display the exit button
         screen.blit(exit_button_text, exit_button_rect)
 
-        # Отображение кнопки "Настройки управления"
+        # Display the control settings button
         screen.blit(settings_button_text, settings_button_rect)
         screen.blit(difficulty_button_text, difficulty_button_rect)
         screen.blit(liderboard_text, liderboard_rect)
@@ -458,25 +470,25 @@ def main_menu():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:  # ЛКМ
+                if event.button == 1:  # Left mouse button
                     mouse_pos = event.pos
                     if exit_button_rect.collidepoint(mouse_pos):
-                        confirm_exit()  # Переход к экрану подтверждения выхода
+                        confirm_exit()  # Go to exit confirmation screen
                     elif settings_button_rect.collidepoint(mouse_pos):
-                        change_key_bindings()  # Переход к экрану изменения раскладки
+                        change_key_bindings()  # Go to key binding change screen
                     elif difficulty_button_rect.collidepoint(mouse_pos):
                         select_difficulty()
                     else:
                         try:
-                            menu_songs()  # Запускаем игру
+                            menu_songs()  # Start the game with the nickname
                         except pygame.error:
                             pygame.quit()
+
         try:
             pygame.display.flip()
         except pygame.error:
             pygame.quit()
 
-        clock.tick(FPS)
 
 
 def menu_songs():

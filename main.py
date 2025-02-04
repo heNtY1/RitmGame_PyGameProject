@@ -18,7 +18,7 @@ FONT_SIZE = 40
 BEAT_INTERVAL = 500  # Интервал между появлениями стрелок (в миллисекундах)
 GRAVITY = 1
 screen_rect = (0, 0, WIDTH, HEIGHT)
-nickname = ''
+NAME = ''
 
 # Цвета
 WHITE = (255, 255, 255)
@@ -67,16 +67,11 @@ arrow_left_sprite = pygame.transform.scale(arrow_left_sprite, (ARROW_SIZE, ARROW
 arrow_right_sprite = pygame.transform.scale(arrow_right_sprite, (ARROW_SIZE, ARROW_SIZE))
 
 # Музыка
-music_tracks = [
-    'Moondeity - Neon-blade.mp3',
-    'INTERWORLD - METAMORPHOSIS.mp3',
-    'Remzcore - Dynamite.mp3',
-    'Вова Солодков - Барабулька.mp3',
-    'Весокосный год - Там далеко-далеко...mp3',
-]
-hit_sound = pygame.mixer.Sound(os.path.join('data/music', 'попал.mp3'))
-miss_sound = pygame.mixer.Sound(os.path.join('data/music', 'промах.mp3'))
-menu_sound = pygame.mixer.Sound(os.path.join('data/music', 'Kavinsky_feat_Lovefox_-_Nightcall.mp3'))
+music_tracks = [f for f in os.listdir('data/music') if os.path.isfile('data/music' + '/' + f)]
+
+hit_sound = pygame.mixer.Sound(os.path.join('data/music/systeam', 'попал.mp3'))
+miss_sound = pygame.mixer.Sound(os.path.join('data/music/systeam', 'промах.mp3'))
+menu_sound = pygame.mixer.Sound(os.path.join('data/music/systeam', 'Kavinsky_feat_Lovefox_-_Nightcall.mp3'))
 
 # Создание окна
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -216,7 +211,7 @@ def game_loop(song, bets):
 
     running = True
     score = 0
-    gif_frames = load_gif(os.path.join('data/sprite', 'Ded-flex.gif.gif'))
+    gif_frames = load_gif(os.path.join('data/sprite', 'Ded-flex.gif'))
     total_frames = len(gif_frames)
     frame_index = 0
     arrows.clear(screen, screen)
@@ -254,7 +249,6 @@ def game_loop(song, bets):
                             if curar.get_type() == 'UP':
                                 if pygame.sprite.collide_mask(curar, table):
                                     score += 1
-                                    hit_sound.play()
                                     position = curar.get_cor()
                                     FadingArrow(curar.image.copy(), position)
                                     create_particles(position)
@@ -262,13 +256,11 @@ def game_loop(song, bets):
                                     break
                                 elif not pygame.sprite.collide_mask(curar, table):
                                     score -= 0.5
-                                    miss_sound.play()
                     elif event.key == key_bindings.get('DOWN'):
                         for curar in arrows.sprites():
                             if curar.get_type() == 'DOWN':
                                 if pygame.sprite.collide_mask(curar, table):
                                     score += 1
-                                    hit_sound.play()
                                     position = curar.get_cor()
                                     FadingArrow(curar.image.copy(), position)
                                     create_particles(position)
@@ -276,13 +268,11 @@ def game_loop(song, bets):
                                     break
                                 elif not pygame.sprite.collide_mask(curar, table):
                                     score -= 0.5
-                                    miss_sound.play()
                     elif event.key == key_bindings.get('LEFT'):
                         for curar in arrows.sprites():
                             if curar.get_type() == 'LEFT':
                                 if pygame.sprite.collide_mask(curar, table):
                                     score += 1
-                                    hit_sound.play()
                                     position = curar.get_cor()
                                     FadingArrow(curar.image.copy(), position)
                                     create_particles(position)
@@ -290,13 +280,11 @@ def game_loop(song, bets):
                                     break
                                 elif not pygame.sprite.collide_mask(curar, table):
                                     score -= 0.5
-                                    miss_sound.play()
                     elif event.key == key_bindings.get('RIGHT'):
                         for curar in arrows.sprites():
                             if curar.get_type() == 'RIGHT':
                                 if pygame.sprite.collide_mask(curar, table):
                                     score += 1
-                                    hit_sound.play()
                                     position = curar.get_cor()
                                     FadingArrow(curar.image.copy(), position)
                                     create_particles(position)
@@ -304,7 +292,6 @@ def game_loop(song, bets):
                                     break
                                 elif not pygame.sprite.collide_mask(curar, table):
                                     score -= 0.5
-                                    miss_sound.play()
 
         # Обновление стрелок и удаление их за пределами экрана
         arrows.update()
@@ -312,7 +299,6 @@ def game_loop(song, bets):
         for arrow in arrows:
             if arrow.rect.y > HEIGHT:
                 score -= 1
-                miss_sound.play()
                 arrow.delete()
         # Создание стрелок в ритме музыки
         current_time = pygame.time.get_ticks() / 1000.0
@@ -326,7 +312,7 @@ def game_loop(song, bets):
         except IndexError:  # Проверка окончания игры
             pygame.mixer.music.stop()
             menu_sound.play(-1)
-            add_score(nickname, score)
+            add_score(NAME, score)
             victory_text = font.render('Игра окончена!', True, (255, 0, 0))
             text_rect = victory_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
             screen.blit(victory_text, text_rect)
@@ -393,10 +379,12 @@ def display_gif(frames, frame_index):
     except:
         pass
 
+
 def get_nickname():
-    global nickname
-    input_active = True
-    while input_active:
+    running = True
+    nickname = ''
+    while running:
+        screen.fill(BLACK)
         # Display the instruction for entering the nickname
         nickname_prompt = font.render("Введите ваш никнейм:", True, WHITE)
         prompt_rect = nickname_prompt.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 50))
@@ -413,7 +401,7 @@ def get_nickname():
                 sys.exit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:  # Confirm nickname
-                    input_active = False
+                    running = False
                 elif event.key == pygame.K_BACKSPACE:  # Handle backspace
                     nickname = nickname[:-1]
                 else:
@@ -423,14 +411,13 @@ def get_nickname():
         clock.tick(FPS)
 
     return nickname
+
+
 # Главное меню
 def main_menu():
     gif_frames = load_gif(os.path.join('data/sprite', 'гоха.gif'))
     total_frames = len(gif_frames)
     frame_index = 0
-
-    # Get the player's nickname
-    player_nickname = get_nickname()
 
     settings_button_text = font.render("Настройки управления", True, WHITE)
     settings_button_rect = settings_button_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 50))
@@ -488,7 +475,6 @@ def main_menu():
             pygame.display.flip()
         except pygame.error:
             pygame.quit()
-
 
 
 def menu_songs():
@@ -694,4 +680,5 @@ if __name__ == '__main__':
     # Воспроизведение выбранного трека
     menu_sound.play(-1)
     # Запуск главного меню
+    NAME = get_nickname()
     main_menu()

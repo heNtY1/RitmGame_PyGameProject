@@ -184,10 +184,14 @@ def create_particles(position):
 
 
 def llb(track_path):
-    y, sr = librosa.load(os.path.join('data/music', track_path))
-    tempo, beatss = librosa.beat.beat_track(y=y, sr=sr)
-    beat_times = librosa.frames_to_time(beatss, sr=sr)
-    return beat_times
+    try:
+        y, sr = librosa.load(os.path.join('data/music', track_path))
+        tempo, beatss = librosa.beat.beat_track(y=y, sr=sr)
+        beat_times = librosa.frames_to_time(beatss, sr=sr)
+        return beat_times
+    except Exception as e:
+        print(f"Error processing {track_path}: {e}")
+        return [i * 0.5 for i in range(120)]
 
 
 def add_score(username, score):

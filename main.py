@@ -51,6 +51,7 @@ DIFFICULTY_SETTINGS = {
     'EASY': {'ARROW_SPEED': 3, 'BEAT_INTERVAL': 700},
     'MEDIUM': {'ARROW_SPEED': 5, 'BEAT_INTERVAL': 500},
     'HARD': {'ARROW_SPEED': 7, 'BEAT_INTERVAL': 300},
+    'VERY HARD': {'ARROW_SPEED': 15, 'BEAT_INTERVAL': 150}
 }
 current_difficulty = 'MEDIUM'
 
@@ -200,7 +201,7 @@ def get_leaderboard():
         text = file.readlines()
         for i in text:
             a = i[:-1].split()
-            sps.append((a[0], int(a[1])))
+            sps.append((a[0], float(a[1])))
     return sorted(sps, key=lambda x: x[1] * -1)[:3]
 
 
@@ -210,6 +211,10 @@ def game_loop(song, bets):
     BEAT_INTERVAL = DIFFICULTY_SETTINGS[current_difficulty]['BEAT_INTERVAL']
 
     running = True
+    track = True
+    firstarrow = True
+    gameover = 0
+    arr = Table(1000, 1000, 1)
     score = 0
     gif_frames = load_gif(os.path.join('data/sprite', 'Ded-flex.gif'))
     total_frames = len(gif_frames)
@@ -226,8 +231,6 @@ def game_loop(song, bets):
 
     # Play the selected track
     menu_sound.stop()
-    pygame.mixer.music.load(os.path.join('data/music', track_path))
-    pygame.mixer.music.play(-1)
 
     while running:
         screen.fill(WHITE)
@@ -307,15 +310,27 @@ def game_loop(song, bets):
                 last_beat_index += 1
             elif -0.5 <= beats[last_beat_index] - current_time <= 0.05:
                 direction = random.choice(['UP', 'DOWN', 'LEFT', 'RIGHT'])
-                Arrow(direction)
+                if firstarrow:
+                    arr = Arrow(direction)
+                    firstarrow = False
+                else:
+                    Arrow(direction)
                 last_beat_index += 1
+
+            if track and pygame.sprite.collide_mask(arr, table):
+                pygame.mixer.music.load(os.path.join('data/music', track_path))
+                pygame.mixer.music.play(-1)
+                track = False
         except IndexError:  # Проверка окончания игры
+            gameover += 1
             pygame.mixer.music.stop()
-            menu_sound.play(-1)
             add_score(NAME, score)
             victory_text = font.render('Игра окончена!', True, (255, 0, 0))
             text_rect = victory_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
             screen.blit(victory_text, text_rect)
+        if gameover == 1:
+            menu_sound.play(-1)
+            gameover = 2
 
         # Обновление fading arrows и particles
         fading_arrows_group.update()
